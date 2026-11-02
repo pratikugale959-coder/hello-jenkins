@@ -58,12 +58,12 @@ pipeline {
         stage('Push') {
             steps {
                 script {
-                    ecrLogin()
+                  ecrLogin()
                     run "docker tag ${IMG} ${REMOTE}"
                     run "docker push ${REMOTE}"
-                }
-            }
-        }
+                } 
+           }
+          }
 
         stage('Deploy') {
             when {
