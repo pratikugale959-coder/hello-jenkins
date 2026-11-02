@@ -6,13 +6,22 @@ def run(cmd) {
         bat cmd
     }
 }
+
+def awsRun(cmd) {
+    withCredentials([
+        string(credentialsId: 'aws-key-id-test', variable: 'AWS_ACCESS_KEY_ID'),
+        string(credentialsId: 'aws-secret-test', variable: 'AWS_SECRET_ACCESS_KEY')
+    ]) {
+        run(cmd)
+    }
+}
+
+def ecrLogin() {
+    awsRun "aws ecr get-login-password --region ${env.REGION} | docker login --username AWS --password-stdin ${env.REGISTRY}"
+}
+
 def deploy() {
-    awsRun """
-        aws ssm send-command --region ${env.REGION} \
-        --instance-ids ${env.INSTANCE} \
-        --document-name AWS-RunShellScript \
-        --parameters file://deploy.json
-    """
+    awsRun "aws ssm send-command --region ${env.REGION} --instance-ids ${env.INSTANCE} --document-name AWS-RunShellScript --parameters file://deploy.json"
 }
 
 pipeline {
@@ -30,17 +39,6 @@ pipeline {
     }
 
     stages {
-
-        stage('Docker Check') {
-            steps {
-                script {
-                    run 'where docker'
-                    run 'docker --version'
-                    run 'docker info'
-                }
-            }
-        }
-
         stage('Build') {
             steps {
                 script {
@@ -60,13 +58,9 @@ pipeline {
         stage('Push') {
             steps {
                 script {
-                    docker.withRegistry(
-                        "https://${env.REGISTRY}",
-                        "ecr:${env.REGION}:aws-jenkins"
-                    ) {
-                        run "docker tag ${IMG} ${REMOTE}"
-                        run "docker push ${REMOTE}"
-                    }
+                    ecrLogin()
+                    run "docker tag ${IMG} ${REMOTE}"
+                    run "docker push ${REMOTE}"
                 }
             }
         }
@@ -78,7 +72,9 @@ pipeline {
                 }
             }
             steps {
-                echo 'Deployment is not configured yet.'
+                script {
+                    deploy()
+                }
             }
         }
     }
