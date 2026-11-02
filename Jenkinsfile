@@ -15,7 +15,6 @@ def awsRun(cmd) {
         run(cmd)
     }
 }
-
 def ecrLogin() {
     awsRun "aws ecr get-login-password --region ${env.REGION} | docker login --username AWS --password-stdin ${env.REGISTRY}"
 }
